@@ -325,14 +325,15 @@ Error_Handler();
 /* USER CODE END Boot_Mode_Sequence_2 */
 
   /* USER CODE BEGIN SysInit */
-  SWD_Init();
-  write(0,"Hello",5);
+  //SWD_Init();
+  //write(0,"Hello",5);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_LPUART1_UART_Init();
+  //MX_LPUART1_UART_Init();
+  MX_USART3_UART_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
   MX_RTC_Init();
