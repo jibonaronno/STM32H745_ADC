@@ -47,6 +47,13 @@
 #define DATE      0x10
 #define MONTH     RTC_MONTH_OCTOBER
 #define YEAR      0x23
+
+#define BFR_SIZE	1000
+uint32_t buffer1[BFR_SIZE];
+uint32_t buffer2[BFR_SIZE];
+int gidxA = 0;
+int gidxB = 0;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -153,6 +160,8 @@ void SWD_Init(void)
 int __io_putchar(int ch){
    ITM_SendChar(ch);
 }
+
+void printBuffers(uint32_t *bfr1, uint32_t *bfr2, int size);
 
 
 void myprintf(const char *fmt, ...) {
@@ -345,21 +354,25 @@ Error_Handler();
   while (1)
   {
 
-	  if(ctr==BUFFER_SIZE){
-		 // myprintf("PA6 DATA:\r\n");
-    //  MovingAvg();
+	  //if(ctr==BUFFER_SIZE)
+	  if(gidxA == BFR_SIZE)
+	  {
+		  //myprintf("PA6 DATA:\r\n");
+		  //MovingAvg();
 #if USE_FOR_LORA
 			PeakDetectnEdge();
 #endif
 			//TransferDataADC();
-			myprintf2("ADC0 : \n");
-			HAL_Delay(1000);
+			//myprintf2("ADC0 : \n");
+			printBuffers(buffer1, buffer2, 100);
+			HAL_Delay(3000);
 		  ctr=0;
+		  gidxA = 0;
 		  MX_DMA_Init();
 	  }
 
 	  HAL_Delay(1000);
-	  myprintf2("ADC0 : \n");
+	  //myprintf2("ADC0 : \n");
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -794,6 +807,7 @@ static void MX_GPIO_Init(void)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
 {
+	/*
     if(ctr < BUFFER_SIZE){
         PA6_Data[ctr++] = ADC_DualModeVal[0] & 0XFFFF;
         PA6_Data[ctr++] = (ADC_DualModeVal[0] >> 16) & 0XFFFF ;
@@ -807,11 +821,22 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
     }
     else{
     	HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
-     //  HAL_DMA_Abort(&hdma_adc1);
+    	//HAL_DMA_Abort(&hdma_adc1);
 		//HAL_ADC_Stop(&hadc1);
 		//HAL_ADC_Stop(&hadc2);
-   //   HAL_ADCEx_MultiModeStop_DMA(&hdma_adc1);
+    	//HAL_ADCEx_MultiModeStop_DMA(&hdma_adc1);
+    }
+    */
 
+    if(gidxA < BFR_SIZE)
+    {
+    	buffer1[gidxA] = (ADC_DualModeVal[0] >> 16);
+    	buffer2[gidxA] = (ADC_DualModeVal[1] >> 16);
+    	gidxA++;
+    }
+    else
+    {
+    	HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
     }
 
 }
@@ -944,6 +969,17 @@ static void TransferDataADC(void)
 
 
 }
+
+void printBuffers(uint32_t *bfr1, uint32_t *bfr2, int size)
+{
+	int lidx = 0;
+
+	for(lidx=0;lidx < size; lidx++)
+	{
+		myprintf2("%d, %d\r\n", bfr1[lidx], bfr2[lidx]);
+	}
+}
+
 /* USER CODE END 4 */
 
 /**
