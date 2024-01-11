@@ -53,6 +53,11 @@ uint32_t buffer1[BFR_SIZE];
 uint32_t buffer2[BFR_SIZE];
 int gidxA = 0;
 int gidxB = 0;
+int rateA = 0;
+int rateB = 0;
+int millis = 0;
+int a_shot = 0;
+volatile int b_shot = 0;
 
 /* USER CODE END PD */
 
@@ -351,6 +356,10 @@ Error_Handler();
   HAL_RTC_GetDate(&hrtc, &_date, RTC_FORMAT_BCD);
   HAL_ADCEx_MultiModeStart_DMA(&hadc1,(uint32_t *)ADC_DualModeVal,4);
 
+  //a_shot = HAL_GetTick();
+
+  myprintf2("STARTING : \r\n");
+
   while (1)
   {
 
@@ -362,17 +371,28 @@ Error_Handler();
 #if USE_FOR_LORA
 			PeakDetectnEdge();
 #endif
-			//TransferDataADC();
-			//myprintf2("ADC0 : \n");
-			printBuffers(buffer1, buffer2, 100);
-			HAL_Delay(3000);
-		  ctr=0;
-		  gidxA = 0;
-		  MX_DMA_Init();
+		//TransferDataADC();
+
+		////printBuffers(buffer1, buffer2, 100);
+		////HAL_Delay(3000);
+		ctr=0;
+		////gidxA = 0;
+		////MX_DMA_Init();
 	  }
 
+	if(HAL_GetTick() > (a_shot + 1000))
+	{
+	  a_shot = HAL_GetTick();
+	  myprintf2("rate:%d\r\n", rateB);
 	  HAL_Delay(1000);
-	  //myprintf2("ADC0 : \n");
+	  b_shot  = HAL_GetTick();
+	  MX_DMA_Init();
+	}
+
+	//HAL_Delay(1000);
+	//myprintf2("STARTING : \r\n");
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -828,6 +848,18 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
     }
     */
 
+	if( HAL_GetTick() > (b_shot + 1000))
+	{
+		b_shot  = HAL_GetTick();
+		HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
+		rateB = rateA;
+		rateA = 0;
+	}
+	else
+	{
+		rateA++;
+	}
+
     if(gidxA < BFR_SIZE)
     {
     	buffer1[gidxA] = (ADC_DualModeVal[0] >> 16);
@@ -836,9 +868,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
     }
     else
     {
-    	HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
-    }
+    	//HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
 
+    	gidxA = 0;
+    }
 }
 
 
