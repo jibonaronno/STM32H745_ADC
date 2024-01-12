@@ -58,6 +58,8 @@ int rateB = 0;
 int millis = 0;
 int a_shot = 0;
 volatile int b_shot = 0;
+volatile int c_shot = 0;
+volatile int flag_buffer_complete = 0;
 
 /* USER CODE END PD */
 
@@ -380,14 +382,23 @@ Error_Handler();
 		////MX_DMA_Init();
 	  }
 
-	if(HAL_GetTick() > (a_shot + 1000))
-	{
-	  a_shot = HAL_GetTick();
-	  myprintf2("rate:%d\r\n", rateB);
-	  HAL_Delay(1000);
-	  b_shot  = HAL_GetTick();
-	  MX_DMA_Init();
-	}
+//	if(HAL_GetTick() > (a_shot + 1000))
+//	{
+//	  a_shot = HAL_GetTick();
+//	  myprintf2("rate:%d\r\n", rateB);
+//	  HAL_Delay(1000);
+//	  b_shot  = HAL_GetTick();
+//	  MX_DMA_Init();
+//	}
+
+	  if(flag_buffer_complete == 1)
+	  {
+		  printBuffers(buffer1, buffer2, 1000);
+		  HAL_Delay(500);
+		  flag_buffer_complete = 0;
+		  b_shot  = HAL_GetTick();
+		  MX_DMA_Init();
+	  }
 
 	//HAL_Delay(1000);
 	//myprintf2("STARTING : \r\n");
@@ -851,7 +862,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
 	if( HAL_GetTick() > (b_shot + 1000))
 	{
 		b_shot  = HAL_GetTick();
-		HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
+		//HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
 		rateB = rateA;
 		rateA = 0;
 	}
@@ -868,8 +879,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
     }
     else
     {
-    	//HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
-
+    	HAL_NVIC_DisableIRQ(DMA1_Stream0_IRQn);
+    	flag_buffer_complete = 1;
     	gidxA = 0;
     }
 }
