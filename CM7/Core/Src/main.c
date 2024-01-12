@@ -15,13 +15,14 @@
   *
   ******************************************************************************
   */
+
+#include <stdarg.h>
+#include <stdlib.h>
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "string.h"
-#include <stdarg.h>
-#include <stdlib.h>
-//#include "stdio.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #define USE_FOR_LORA 	0
@@ -40,7 +41,6 @@
 #define HSEM_ID_0 (0U) /* HW semaphore 0*/
 #endif
 #define 	BUFFER_SIZE		50000
-/*#define 	BUFFER_SIZE		50000
 /* timestamp in BCD format */
 #define HOURS     0x10
 #define MINUTES   0x06
@@ -95,10 +95,12 @@ DMA_HandleTypeDef hdma_adc2;
 
 ETH_HandleTypeDef heth;
 
+RTC_HandleTypeDef hrtc;
+
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
-RTC_HandleTypeDef hrtc;
+
 /* USER CODE BEGIN PV */
 UART_HandleTypeDef hlpuart1;
 HAL_StatusTypeDef HAL_ADCEx_MultiModeRegStart_DMA(ADC_HandleTypeDef *hadc, uint32_t *pData, uint32_t Length);
@@ -348,62 +350,20 @@ Error_Handler();
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  //MX_LPUART1_UART_Init();
   MX_USART3_UART_Init();
+  MX_USB_OTG_FS_PCD_Init();
   MX_ADC1_Init();
+  MX_ETH_Init();
   MX_ADC2_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  HAL_RTC_GetTime(&hrtc, &_time, RTC_FORMAT_BCD);
-  HAL_RTC_GetDate(&hrtc, &_date, RTC_FORMAT_BCD);
-  HAL_ADCEx_MultiModeStart_DMA(&hadc1,(uint32_t *)ADC_DualModeVal,4);
 
-  //a_shot = HAL_GetTick();
+  /* USER CODE END 2 */
 
-  myprintf2("STARTING : \r\n");
-
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  //if(ctr==BUFFER_SIZE)
-	  if(gidxA == BFR_SIZE)
-	  {
-		  //myprintf("PA6 DATA:\r\n");
-		  //MovingAvg();
-#if USE_FOR_LORA
-			PeakDetectnEdge();
-#endif
-		//TransferDataADC();
-
-		////printBuffers(buffer1, buffer2, 100);
-		////HAL_Delay(3000);
-		ctr=0;
-		////gidxA = 0;
-		////MX_DMA_Init();
-	  }
-
-//	if(HAL_GetTick() > (a_shot + 1000))
-//	{
-//	  a_shot = HAL_GetTick();
-//	  myprintf2("rate:%d\r\n", rateB);
-//	  HAL_Delay(1000);
-//	  b_shot  = HAL_GetTick();
-//	  MX_DMA_Init();
-//	}
-
-	  if(flag_buffer_complete == 1)
-	  {
-		  printBuffers(buffer1, buffer2, 1000);
-		  HAL_Delay(500);
-		  flag_buffer_complete = 0;
-		  b_shot  = HAL_GetTick();
-		  MX_DMA_Init();
-	  }
-
-	//HAL_Delay(1000);
-	//myprintf2("STARTING : \r\n");
-
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -422,7 +382,7 @@ void SystemClock_Config(void)
 
   /** Supply configuration update enable
   */
-  HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
+  HAL_PWREx_ConfigSupply(PWR_EXTERNAL_SOURCE_SUPPLY);
 
   /** Configure the main internal regulator output voltage
   */
@@ -433,8 +393,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 1;
@@ -467,9 +428,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
-   //HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSE, RCC_MCODIV_8);
-
 }
 
 /**
@@ -484,89 +442,18 @@ void PeriphCommonClock_Config(void)
   */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInitStruct.PLL2.PLL2M = 1;
-  PeriphClkInitStruct.PLL2.PLL2N = 20;
-  PeriphClkInitStruct.PLL2.PLL2P = 4;
+  PeriphClkInitStruct.PLL2.PLL2N = 21;
+  PeriphClkInitStruct.PLL2.PLL2P = 5;
   PeriphClkInitStruct.PLL2.PLL2Q = 2;
   PeriphClkInitStruct.PLL2.PLL2R = 2;
   PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_3;
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOMEDIUM;
-  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.PLL2.PLL2FRACN = 7168;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_PLL2;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief RTC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_RTC_Init(void)
-{
-
-  /* USER CODE BEGIN RTC_Init 0 */
-
-  /* USER CODE END RTC_Init 0 */
-
-  RTC_TimeTypeDef sTime = {0};
-  RTC_DateTypeDef sDate = {0};
-
-  /* USER CODE BEGIN RTC_Init 1 */
-
-  /* USER CODE END RTC_Init 1 */
-
-  /** Initialize RTC Only
-  */
-  hrtc.Instance = RTC;
-  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
-  hrtc.Init.AsynchPrediv = 127;
-  hrtc.Init.SynchPrediv = 255;
-  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
-  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_POS1;
-  if (HAL_RTC_Init(&hrtc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* USER CODE BEGIN Check_RTC_BKUP */
-
-  /* USER CODE END Check_RTC_BKUP */
-
-  /** Initialize RTC and set the Time and Date
-  */
-  sTime.Hours = HOURS;
-  sTime.Minutes = MINUTES;
-  sTime.Seconds = 0x0;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sDate.WeekDay = RTC_WEEKDAY_SUNDAY;
-  sDate.Month = MONTH;
-  sDate.Date = DATE;
-  sDate.Year = YEAR;
-
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Enable Calibrartion
-  */
-  if (HAL_RTCEx_SetCalibrationOutPut(&hrtc, RTC_CALIBOUTPUT_1HZ) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN RTC_Init 2 */
-
-  /* USER CODE END RTC_Init 2 */
-
 }
 
 /**
@@ -610,11 +497,19 @@ static void MX_ADC1_Init(void)
     Error_Handler();
   }
 
-
+  /** Configure the ADC multi-mode
+  */
+  multimode.Mode = ADC_DUALMODE_REGSIMULT;
+  multimode.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;
+  multimode.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Channel = ADC_CHANNEL_19;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -625,24 +520,6 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
-
-/* Run the ADC calibration in single-ended mode */
-  if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET_LINEARITY, ADC_SINGLE_ENDED) != HAL_OK)
-  {
-    /* Calibration Error */
-    Error_Handler();
-  }
-
-  /** Configure the ADC multi-mode
-  */
-  multimode.Mode = ADC_DUALMODE_INTERL;
-  multimode.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;
-  multimode.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
-  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
@@ -678,7 +555,7 @@ static void MX_ADC2_Init(void)
   hadc2.Init.ContinuousConvMode = ENABLE;
   hadc2.Init.NbrOfConversion = 1;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
-  hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
+  hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
   hadc2.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc2.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
   hadc2.Init.OversamplingMode = DISABLE;
@@ -711,7 +588,125 @@ static void MX_ADC2_Init(void)
 
 }
 
+/**
+  * @brief ETH Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ETH_Init(void)
+{
 
+  /* USER CODE BEGIN ETH_Init 0 */
+
+  /* USER CODE END ETH_Init 0 */
+
+   static uint8_t MACAddr[6];
+
+  /* USER CODE BEGIN ETH_Init 1 */
+
+  /* USER CODE END ETH_Init 1 */
+  heth.Instance = ETH;
+  MACAddr[0] = 0x00;
+  MACAddr[1] = 0x80;
+  MACAddr[2] = 0xE1;
+  MACAddr[3] = 0x00;
+  MACAddr[4] = 0x00;
+  MACAddr[5] = 0x00;
+  heth.Init.MACAddr = &MACAddr[0];
+  heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
+  heth.Init.TxDesc = DMATxDscrTab;
+  heth.Init.RxDesc = DMARxDscrTab;
+  heth.Init.RxBuffLen = 1524;
+
+  /* USER CODE BEGIN MACADDRESS */
+
+  /* USER CODE END MACADDRESS */
+
+  if (HAL_ETH_Init(&heth) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  memset(&TxConfig, 0 , sizeof(ETH_TxPacketConfig));
+  TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
+  TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
+  TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
+  /* USER CODE BEGIN ETH_Init 2 */
+
+  /* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+  /* USER CODE END RTC_Init 1 */
+
+  /** Initialize RTC Only
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+  hrtc.Init.AsynchPrediv = 127;
+  hrtc.Init.SynchPrediv = 255;
+  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_POS1;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* USER CODE BEGIN Check_RTC_BKUP */
+
+  /* USER CODE END Check_RTC_BKUP */
+
+  /** Initialize RTC and set the Time and Date
+  */
+  sTime.Hours = 0x0;
+  sTime.Minutes = 0x0;
+  sTime.Seconds = 0x0;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sDate.WeekDay = RTC_WEEKDAY_MONDAY;
+  sDate.Month = RTC_MONTH_JANUARY;
+  sDate.Date = 0x1;
+  sDate.Year = 0x0;
+
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Enable Calibrartion
+  */
+  if (HAL_RTCEx_SetCalibrationOutPut(&hrtc, RTC_CALIBOUTPUT_1HZ) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+
+  /* USER CODE END RTC_Init 2 */
+
+}
 
 /**
   * @brief USART3 Initialization Function
@@ -761,6 +756,41 @@ static void MX_USART3_UART_Init(void)
 
 }
 
+/**
+  * @brief USB_OTG_FS Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USB_OTG_FS_PCD_Init(void)
+{
+
+  /* USER CODE BEGIN USB_OTG_FS_Init 0 */
+
+  /* USER CODE END USB_OTG_FS_Init 0 */
+
+  /* USER CODE BEGIN USB_OTG_FS_Init 1 */
+
+  /* USER CODE END USB_OTG_FS_Init 1 */
+  hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+  hpcd_USB_OTG_FS.Init.dev_endpoints = 9;
+  hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+  hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+  hpcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.battery_charging_enable = ENABLE;
+  hpcd_USB_OTG_FS.Init.vbus_sensing_enable = ENABLE;
+  hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
+  if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USB_OTG_FS_Init 2 */
+
+  /* USER CODE END USB_OTG_FS_Init 2 */
+
+}
 
 /**
   * Enable DMA controller clock
@@ -776,8 +806,8 @@ static void MX_DMA_Init(void)
   HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
   /* DMA1_Stream1_IRQn interrupt configuration */
-  //HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
-  //HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
 }
 
@@ -798,36 +828,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
-
-
-
-
- GPIO_InitTypeDef   GPIO_InitStructure;
-
-  /* Enable GPIOC clock */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  /* Configure PC.13 pin as the EXTI input event line in interrupt mode for both CPU1 and CPU2*/
-  GPIO_InitStructure.Mode = GPIO_MODE_IT_FALLING;    /* current CPU (CM7) config in IT rising */
-  GPIO_InitStructure.Pull = GPIO_NOPULL;
-  GPIO_InitStructure.Pin = GPIO_PIN_5;
-  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  //HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-    GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;    /* current CPU (CM7) config in IT rising */
-  GPIO_InitStructure.Pull = GPIO_NOPULL;
-  GPIO_InitStructure.Pin = GPIO_PIN_9;
-  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
-
-  /* Enable and set EXTI lines 15 to 10 Interrupt to the lowest priority */
-  //HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
-  //HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-
-  /* Configure the second CPU (CM4) EXTI line for IT*/
- // HAL_EXTI_D1_EventInputConfig(EXTI_LINE5 , EXTI_MODE_IT,  ENABLE);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
